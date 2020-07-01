@@ -1,0 +1,8 @@
+app:
+   name: dist-task-manager
+
+zookeeper:
+      address: zk-stg.helijia.com:12181
+      millSeconds: 1000
+      retryTimes: 3
+      nameSpace: dist-task-manager
