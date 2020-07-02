@@ -13,7 +13,6 @@ import org.apache.zookeeper.CreateMode;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -34,11 +33,15 @@ public class TaskSubListener {
     /**
      * 任务分发的根容器节点
      */
-    private String containerPath = "/jobRoot";
+    private String TASK_ROOT = "/taskRoot";
     /**
      * 任务节点 路径
      */
-    private final String TASK_NODE_PATH = containerPath +"/"+UUID.randomUUID().toString();
+    private final String TASK_NODE_PATH = TASK_ROOT +"/task/"+UUID.randomUUID().toString();
+    /**
+     * 任务状态节点 路径
+     */
+    private final String TASK_STATUS_NODE_PATH = TASK_ROOT +"/taskStatus/"+UUID.randomUUID().toString();
 
     private String namespace;
 
@@ -46,14 +49,13 @@ public class TaskSubListener {
 
     private TaskSubExecutor taskSubExecutor;
 
-    private List<TaskPayload> taskPayloadList = new ArrayList<>();
 
 
     public void start() throws Exception{
         //校验成员变量
         volation();
-        //注册任务节点
-        registerTaskNodes();
+        //注册任务节点和任务状态节点
+        registerTaskAndStatusNodes();
         //监听自己注册的任务分发节点
         listenerTaskNodes();
     }
@@ -73,6 +75,9 @@ public class TaskSubListener {
         if(StringUtils.isEmpty(namespace)) {
             throw new IllegalArgumentException("namespace must not be null");
         }
+        if(Objects.isNull(taskSubExecutor)) {
+            throw  new IllegalArgumentException("taskSubExecutor must not be null");
+        }
     }
 
 
@@ -86,17 +91,22 @@ public class TaskSubListener {
             if(null != data) {
                 String taskMessage = new String(nodeCache.getCurrentData().getData());
                 System.out.println("节点数据："+ taskMessage);
-                List<TaskPayload> taskPayloadList = JSON.parseArray(taskMessage, TaskPayload.class);
-                //执行任务调度
-                List<TaskFinishedPayLoad> taskFinishedPayLoadList = taskSubExecutor.doExecute(taskPayloadList);
-                //执行完毕反向通知发布者
-                finishedAndModifyNode(taskFinishedPayLoadList);
+                List<TaskPayload> taskPayloadList = null;
+                try {
+                    taskPayloadList = JSON.parseArray(taskMessage, TaskPayload.class);
+                    //执行任务调度
+                    List<TaskFinishedPayLoad> taskFinishedPayLoadList = taskSubExecutor.doExecute(taskPayloadList);
+                    //执行完毕反向通知发布者
+                    finishedAndModifyNode(taskFinishedPayLoadList);
+                } catch (Exception e) {
+                    log.error(taskMessage);
+                }
             }else {
                 System.out.println("节点被删除");
             }
         };
         Thread t = new Thread(()->{
-            System.out.println("taskSubListener has running!");
+            System.out.println("taskSubListener has running !!!!");
             nodeCache.getListenable().addListener(listener);
             try {
                 nodeCache.start();
@@ -110,7 +120,7 @@ public class TaskSubListener {
                     log.error(e.getMessage());
                 }
             }
-            System.out.println("taskSubListener has stopping!");
+            System.out.println("taskSubListener has stopped !!!!!");
         }, "taskSubListener");
         t.start();
     }
@@ -121,18 +131,19 @@ public class TaskSubListener {
 
 
     /**
-     * 注册任务接收节点
+     * 注册任务接收节点和任务执行结果反馈节点
      */
-    private void registerTaskNodes() throws Exception{
-        zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(TASK_NODE_PATH);
+    private void registerTaskAndStatusNodes() throws Exception{
+        zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(TASK_NODE_PATH, "create".getBytes());
+        zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(TASK_STATUS_NODE_PATH, "creat".getBytes());
     }
 
     /**
-     * 任务执行完成修改任务节点数据反向通知任务发布者
+     * 任务执行完成 更新任务状态节点数据 反馈任务发布者
      */
     private void finishedAndModifyNode(List<TaskFinishedPayLoad> taskFinishedPayLoadList) throws Exception {
         if(!CollectionUtils.isEmpty(taskFinishedPayLoadList)) {
-            zkClient.setData().forPath(TASK_NODE_PATH, JSON.toJSONString(taskFinishedPayLoadList).getBytes());
+            zkClient.setData().forPath(TASK_STATUS_NODE_PATH, JSON.toJSONString(taskFinishedPayLoadList).getBytes());
         }
 
         /*if(!CollectionUtils.isEmpty(taskPayloadList)) {
@@ -159,5 +170,9 @@ public class TaskSubListener {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public void setTaskSubExecutor(TaskSubExecutor taskSubExecutor) {
+        this.taskSubExecutor = taskSubExecutor;
     }
 }

@@ -16,10 +16,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class TaskPubListenerConf {
 
+    private String nameSpace = "dist-task";
+
     @Bean(name = "taskPubListener", initMethod = "start", destroyMethod = "shutdown")
     public TaskPubListener createListener(@Qualifier("zkClient") CuratorFramework zkClient) {
         TaskPubListener taskPubListener = new TaskPubListener();
         taskPubListener.setZkClient(zkClient);
+        taskPubListener.setNamespace(nameSpace);
         return taskPubListener;
     }
 }

@@ -1,11 +1,14 @@
 package com.helijia.promotion.disttaskmanager.listener;
 
+import com.alibaba.fastjson.JSON;
 import com.helijia.promotion.disttaskmanager.domain.TaskPayload;
+import com.helijia.promotion.disttaskmanager.enums.TaskBatchStatusEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.data.Stat;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -30,23 +33,32 @@ public class TaskPubListener {
     /**
      * 任务分发的根容器节点
      */
-    private String containerPath = "/jobRoot";
+    private final String TASK_ROOT = "/taskRoot";
     /**
      * 任务批次状态节点路径
      */
-    private String taskBatchStatusPath = "/jobBatchStatus";
+    private final String TASK_BATCH_STATUS_PATH = TASK_ROOT + "/taskBatchStatus";
+
+    /**
+     * 任务根节点 路径
+     */
+    private final String TASK_NODE_PATH = TASK_ROOT +"/task";
+    /**
+     * 任务状态根节点 路径
+     */
+    private final String TASK_STATUS_NODE_PATH = TASK_ROOT +"/taskStatus";
 
     private CuratorFramework zkClient;
 
     private String namespace;
 
-    public void start() {
+    public void start() throws Exception{
         //校验必要成员
         volation();
         //创建任务批次状态节点
         createTaskBatchStatusNode();
         //监听任务节点
-        listenerTaskNodes();
+        listenerTaskStatusNodes();
     }
 
     public void shutdown() {
@@ -56,11 +68,11 @@ public class TaskPubListener {
     }
 
     /**
-     * 开始监听任务分发节点
+     * 开始监听任务状态节点
      */
-    private void listenerTaskNodes() {
+    private void listenerTaskStatusNodes() {
 
-        PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, getContainerPath(), true);
+        PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, TASK_STATUS_NODE_PATH, true);
 
         PathChildrenCacheListener cacheListener = (zkClient, event)->{
             System.out.println("事件类型："+ event.getType());
@@ -70,7 +82,7 @@ public class TaskPubListener {
         };
 
         Thread t1 = new Thread(() -> {
-            System.out.println("$$$$$$$$$$$$$$$$$$$");
+            System.out.println("TaskPubListener has running !!!!!");
             try {
                 pathChildrenCache.start();
             } catch (Exception e) {
@@ -84,7 +96,7 @@ public class TaskPubListener {
                     e.printStackTrace();
                 }
             }
-            System.out.println("################");
+            System.out.println("TaskPubListener has stopped !!!!!");
 
         }, "taskPubListener");
         t1.start();
@@ -105,27 +117,56 @@ public class TaskPubListener {
     /**
      * 创建任务批次状态节点
      */
-    private void createTaskBatchStatusNode() {
-        zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(taskBatchStatusPath);
+    private void createTaskBatchStatusNode() throws Exception {
+        //zkClient.delete().forPath(TASK_BATCH_STATUS_PATH);
+        Stat stat = zkClient.checkExists().forPath(TASK_BATCH_STATUS_PATH);
+        if(Objects.isNull(stat)) {
+            zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(TASK_BATCH_STATUS_PATH, "create".getBytes());
+        }
     }
 
     /**
-     * 是否能够发布任务
+     * 是否能够发布任务 true:可以发布  false:不能发布
      * @return
      */
-    private boolean canPubTask() {
-        //String batchStatusMessage = new String(zkClient.getData().forPath(taskBatchStatusPath));
+    private boolean canPubTask() throws Exception{
+        String batchStatusMessage = new String(zkClient.getData().forPath(TASK_BATCH_STATUS_PATH));
+        if(batchStatusMessage.equals(TaskBatchStatusEnum.FINISHED.name()) || batchStatusMessage.equals("create")) {
+            return true;
+        }
         return false;
     }
 
     /**
-     * 发布任务
+     * 设置任务批次节点状态信息
+     * @param message
+     * @return
+     */
+    private void setTaskBatchStatusNode(String message) throws Exception {
+        zkClient.setData().forPath(TASK_BATCH_STATUS_PATH, message.getBytes());
+    }
+
+    /**
+     * 发布任务 true:发布成功  false:发布失败
      * @param taskPayloadList
      */
-    public void pubTask(List<TaskPayload> taskPayloadList) throws Exception{
-        List<String> nodePaths = zkClient.getChildren().forPath(containerPath);
-        if(!CollectionUtils.isEmpty(nodePaths)) {
-
+    public boolean pubTask(List<TaskPayload> taskPayloadList) throws Exception{
+        List<String> taskNodePaths = zkClient.getChildren().forPath(TASK_NODE_PATH);
+        if(!CollectionUtils.isEmpty(taskNodePaths)) {
+            if(canPubTask()) {
+                //设置任务批次节点状态
+                setTaskBatchStatusNode(TaskBatchStatusEnum.INIT.name());
+                //开始发布任务
+                for(TaskPayload taskPayload : taskPayloadList) {
+                    for(String taskNodePath : taskNodePaths) {
+                        zkClient.setData().forPath(TASK_NODE_PATH+"/"+taskNodePath, JSON.toJSONString(taskPayload).getBytes());
+                    }
+                }
+                return true;
+            }
+            return false;
+        }else {
+            throw new RuntimeException("没有对应的任务订阅者领取待发布的任务！！！");
         }
     }
 
@@ -138,13 +179,6 @@ public class TaskPubListener {
         this.zkClient = zkClient;
     }
 
-    public String getContainerPath() {
-        return containerPath;
-    }
-
-    public void setContainerPath(String containerPath) {
-        this.containerPath = containerPath;
-    }
 
     public String getNamespace() {
         return namespace;
