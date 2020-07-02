@@ -24,7 +24,7 @@ public class DefaultTaskSubExecutorImpl implements TaskSubExecutor {
 
     @Override
     public TaskFinishedPayLoad doExecute(TaskPayload taskPayload) {
-        System.out.println(JSON.toJSONString("接收到的任务：" + taskPayload));
+        log.info(JSON.toJSONString("接收到的任务：" + taskPayload));
         try {
             TimeUnit.SECONDS.sleep(60);
         } catch (InterruptedException e) {
@@ -34,6 +34,7 @@ public class DefaultTaskSubExecutorImpl implements TaskSubExecutor {
         TaskFinishedPayLoad taskFinishedPayLoad = new TaskFinishedPayLoad();
         taskFinishedPayLoad.setBatchNum(taskPayload.getBatchNum());
         taskFinishedPayLoad.setTaskStatusEnum(TaskStatusEnum.SUCCESS);
+        taskFinishedPayLoad.setTaskId(taskPayload.getTaskId());
 
         return taskFinishedPayLoad;
     }

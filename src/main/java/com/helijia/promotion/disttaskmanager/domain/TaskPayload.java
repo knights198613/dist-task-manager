@@ -1,6 +1,7 @@
 package com.helijia.promotion.disttaskmanager.domain;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 /**
  * @author: wuma (wuma@helijia.com)
@@ -21,7 +22,14 @@ public class TaskPayload<T> implements Serializable {
      * 任务信息
      */
     private T taskInfo;
+    /**
+     * 任务id
+     */
+    private String taskId;
 
+    public TaskPayload() {
+        this.taskId = UUID.randomUUID().toString();
+    }
 
     public String getBatchNum() {
         return batchNum;
@@ -37,5 +45,9 @@ public class TaskPayload<T> implements Serializable {
 
     public void setTaskInfo(T taskInfo) {
         this.taskInfo = taskInfo;
+    }
+
+    public String getTaskId() {
+        return taskId;
     }
 }

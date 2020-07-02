@@ -90,23 +90,23 @@ public class TaskSubListener {
             ChildData data = nodeCache.getCurrentData();
             if(null != data) {
                 String taskMessage = new String(nodeCache.getCurrentData().getData());
-                System.out.println("节点数据："+ taskMessage);
+                log.info("节点数据："+ taskMessage);
                 TaskPayload taskPayload = null;
                 try {
                     taskPayload = JSON.parseObject(taskMessage, TaskPayload.class);
                     //执行任务调度
-                    List<TaskFinishedPayLoad> taskFinishedPayLoadList = taskSubExecutor.doExecute(taskPayload);
+                    TaskFinishedPayLoad taskFinishedPayLoad = taskSubExecutor.doExecute(taskPayload);
                     //执行完毕反向通知发布者
-                    finishedAndModifyNode(taskFinishedPayLoadList);
+                    finishedAndModifyNode(taskFinishedPayLoad);
                 } catch (Exception e) {
                     log.error(taskMessage);
                 }
             }else {
-                System.out.println("节点被删除");
+                log.info("节点被删除");
             }
         };
         Thread t = new Thread(()->{
-            System.out.println("taskSubListener has running !!!!");
+            log.info("taskSubListener has running !!!!");
             nodeCache.getListenable().addListener(listener);
             try {
                 nodeCache.start();
@@ -120,7 +120,7 @@ public class TaskSubListener {
                     log.error(e.getMessage());
                 }
             }
-            System.out.println("taskSubListener has stopped !!!!!");
+            log.info("taskSubListener has stopped !!!!!");
         }, "taskSubListener");
         t.start();
     }
@@ -141,9 +141,9 @@ public class TaskSubListener {
     /**
      * 任务执行完成 更新任务状态节点数据 反馈任务发布者
      */
-    private void finishedAndModifyNode(List<TaskFinishedPayLoad> taskFinishedPayLoadList) throws Exception {
-        if(!CollectionUtils.isEmpty(taskFinishedPayLoadList)) {
-            zkClient.setData().forPath(TASK_STATUS_NODE_PATH, JSON.toJSONString(taskFinishedPayLoadList).getBytes());
+    private void finishedAndModifyNode(TaskFinishedPayLoad taskFinishedPayLoad) throws Exception {
+        if(Objects.nonNull(taskFinishedPayLoad)) {
+            zkClient.setData().forPath(TASK_STATUS_NODE_PATH, JSON.toJSONString(taskFinishedPayLoad).getBytes());
         }
 
         /*if(!CollectionUtils.isEmpty(taskPayloadList)) {

@@ -21,6 +21,10 @@ public class TaskFinishedPayLoad implements Serializable {
      * 回馈任务执行状态
      */
     private TaskStatusEnum taskStatusEnum;
+    /**
+     * 任务id
+     */
+    private String taskId;
 
 
     public String getBatchNum() {
@@ -37,5 +41,13 @@ public class TaskFinishedPayLoad implements Serializable {
 
     public void setTaskStatusEnum(TaskStatusEnum taskStatusEnum) {
         this.taskStatusEnum = taskStatusEnum;
+    }
+
+    public String getTaskId() {
+        return taskId;
+    }
+
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
     }
 }

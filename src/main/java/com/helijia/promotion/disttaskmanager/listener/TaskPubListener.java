@@ -1,19 +1,23 @@
 package com.helijia.promotion.disttaskmanager.listener;
 
 import com.alibaba.fastjson.JSON;
+import com.helijia.promotion.disttaskmanager.domain.TaskFinishedPayLoad;
 import com.helijia.promotion.disttaskmanager.domain.TaskPayload;
 import com.helijia.promotion.disttaskmanager.enums.TaskBatchStatusEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.data.Stat;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author: wuma (wuma@helijia.com)
@@ -51,6 +55,10 @@ public class TaskPubListener {
     private CuratorFramework zkClient;
 
     private String namespace;
+    /**
+     * 任务容器
+     */
+    private ConcurrentHashMap<String, List<TaskPayload>> taskPayLoadMap = new ConcurrentHashMap<>();
 
     public void start() throws Exception{
         //校验必要成员
@@ -75,14 +83,24 @@ public class TaskPubListener {
         PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, TASK_STATUS_NODE_PATH, true);
 
         PathChildrenCacheListener cacheListener = (zkClient, event)->{
-            System.out.println("事件类型："+ event.getType());
+            log.info("事件类型："+ event.getType());
             if(null != event.getData()) {
-                System.out.println("节点数据："+ event.getData().getPath()+" = "+ new String(event.getData().getData()));
+                log.info("节点数据："+ event.getData().getPath()+" = "+ new String(event.getData().getData()));
+                if(PathChildrenCacheEvent.Type.CHILD_UPDATED.equals(event.getType())) {
+                    String message = new String(event.getData().getData());
+                    try {
+                        TaskFinishedPayLoad taskFinishedPayLoad = JSON.parseObject(message, TaskFinishedPayLoad.class);
+                        doJudgeFinished(taskFinishedPayLoad);
+                    } catch (Exception e) {
+                        log.error("执行反馈结果异常。message={}.", message, e);
+                    }
+
+                }
             }
         };
 
         Thread t1 = new Thread(() -> {
-            System.out.println("TaskPubListener has running !!!!!");
+            log.info("TaskPubListener has running !!!!!");
             try {
                 pathChildrenCache.start();
             } catch (Exception e) {
@@ -96,7 +114,7 @@ public class TaskPubListener {
                     e.printStackTrace();
                 }
             }
-            System.out.println("TaskPubListener has stopped !!!!!");
+            log.info("TaskPubListener has stopped !!!!!");
 
         }, "taskPubListener");
         t1.start();
@@ -121,7 +139,7 @@ public class TaskPubListener {
         //zkClient.delete().forPath(TASK_BATCH_STATUS_PATH);
         Stat stat = zkClient.checkExists().forPath(TASK_BATCH_STATUS_PATH);
         if(Objects.isNull(stat)) {
-            zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(TASK_BATCH_STATUS_PATH, "create".getBytes());
+            zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(TASK_BATCH_STATUS_PATH, "create".getBytes());
         }
     }
 
@@ -159,9 +177,14 @@ public class TaskPubListener {
                 //开始发布任务
                 for(TaskPayload taskPayload : taskPayloadList) {
                     for(String taskNodePath : taskNodePaths) {
+                        List<TaskPayload> taskPayloadList1 = taskPayLoadMap.getOrDefault(taskPayload.getBatchNum(), new ArrayList<>());
+                        taskPayloadList1.add(taskPayload);
                         zkClient.setData().forPath(TASK_NODE_PATH+"/"+taskNodePath, JSON.toJSONString(taskPayload).getBytes());
+                        taskPayLoadMap.put(taskPayload.getBatchNum(), taskPayloadList1);
                     }
                 }
+                //设置任务批次节点状态
+                setTaskBatchStatusNode(TaskBatchStatusEnum.RUNNING.name());
                 return true;
             }
             return false;
@@ -171,7 +194,28 @@ public class TaskPubListener {
     }
 
 
-
+    /**
+     * 判断一批任务是否执行完成
+     * @param taskFinishedPayLoad
+     */
+    private void doJudgeFinished(TaskFinishedPayLoad taskFinishedPayLoad) throws Exception{
+        String batchNum = taskFinishedPayLoad.getBatchNum();
+        List<TaskPayload> payloadList = taskPayLoadMap.get(batchNum);
+        TaskPayload payload = payloadList.stream().filter(item->{
+            if(item.getTaskId().equals(taskFinishedPayLoad.getTaskId())) {
+                return true;
+            }
+            return false;
+        }).findFirst().orElseGet(null);
+        if(Objects.nonNull(payload)) {
+            payloadList.remove(payload);
+        }
+        if(CollectionUtils.isEmpty(payloadList)) {
+            taskPayLoadMap.remove(batchNum);
+            setTaskBatchStatusNode(TaskBatchStatusEnum.FINISHED.name());
+            log.info("HAHAHAHAHAHA 任务已经被执行完了！！！！！！");
+        }
+    }
 
 
 

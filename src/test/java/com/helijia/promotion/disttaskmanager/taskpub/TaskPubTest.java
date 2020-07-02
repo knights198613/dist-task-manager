@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author: wuma (wuma@helijia.com)
@@ -31,8 +32,11 @@ public class TaskPubTest extends DistTaskManagerApplicationTests {
         taskPayloadList.add(t1);
         try {
             taskPubListener.pubTask(taskPayloadList);
+            TimeUnit.SECONDS.sleep(3000);
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+
     }
 }
