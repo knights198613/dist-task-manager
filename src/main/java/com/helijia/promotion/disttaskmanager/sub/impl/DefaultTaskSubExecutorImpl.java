@@ -8,8 +8,6 @@ import com.helijia.promotion.disttaskmanager.sub.TaskSubExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -25,20 +23,18 @@ public class DefaultTaskSubExecutorImpl implements TaskSubExecutor {
 
 
     @Override
-    public List<TaskFinishedPayLoad> doExecute(List<TaskPayload> taskPayloadList) {
-        System.out.println(JSON.toJSONString(taskPayloadList));
+    public TaskFinishedPayLoad doExecute(TaskPayload taskPayload) {
+        System.out.println(JSON.toJSONString("接收到的任务：" + taskPayload));
         try {
             TimeUnit.SECONDS.sleep(60);
         } catch (InterruptedException e) {
             log.error("##########");
         }
-        List<TaskFinishedPayLoad> taskFinishedPayLoadList = new ArrayList<>();
-        for(TaskPayload taskPayload : taskPayloadList) {
-            TaskFinishedPayLoad taskFinishedPayLoad = new TaskFinishedPayLoad();
-            taskFinishedPayLoad.setBatchNum(taskPayload.getBatchNum());
-            taskFinishedPayLoad.setTaskStatusEnum(TaskStatusEnum.SUCCESS);
-            taskFinishedPayLoadList.add(taskFinishedPayLoad);
-        }
-        return taskFinishedPayLoadList;
+
+        TaskFinishedPayLoad taskFinishedPayLoad = new TaskFinishedPayLoad();
+        taskFinishedPayLoad.setBatchNum(taskPayload.getBatchNum());
+        taskFinishedPayLoad.setTaskStatusEnum(TaskStatusEnum.SUCCESS);
+
+        return taskFinishedPayLoad;
     }
 }

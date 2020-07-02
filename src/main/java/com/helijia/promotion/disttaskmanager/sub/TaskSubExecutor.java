@@ -15,11 +15,11 @@ import java.util.List;
 public interface TaskSubExecutor {
 
     /**
-     * 调度执行任务列表
-     * @param taskPayloadList
+     * 调度执行任务
+     * @param taskPayload
      * @return
      */
-    List<TaskFinishedPayLoad> doExecute(List<TaskPayload> taskPayloadList);
+    TaskFinishedPayLoad doExecute(TaskPayload taskPayload);
 
 
 

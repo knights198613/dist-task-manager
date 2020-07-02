@@ -91,11 +91,11 @@ public class TaskSubListener {
             if(null != data) {
                 String taskMessage = new String(nodeCache.getCurrentData().getData());
                 System.out.println("节点数据："+ taskMessage);
-                List<TaskPayload> taskPayloadList = null;
+                TaskPayload taskPayload = null;
                 try {
-                    taskPayloadList = JSON.parseArray(taskMessage, TaskPayload.class);
+                    taskPayload = JSON.parseObject(taskMessage, TaskPayload.class);
                     //执行任务调度
-                    List<TaskFinishedPayLoad> taskFinishedPayLoadList = taskSubExecutor.doExecute(taskPayloadList);
+                    List<TaskFinishedPayLoad> taskFinishedPayLoadList = taskSubExecutor.doExecute(taskPayload);
                     //执行完毕反向通知发布者
                     finishedAndModifyNode(taskFinishedPayLoadList);
                 } catch (Exception e) {
