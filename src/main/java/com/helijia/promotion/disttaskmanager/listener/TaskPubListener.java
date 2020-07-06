@@ -158,11 +158,16 @@ public class TaskPubListener {
      * @return
      */
     private boolean canPubTask() throws Exception{
-        String batchStatusMessage = new String(zkClient.getData().forPath(TASK_BATCH_STATUS_PATH));
-        if(batchStatusMessage.equals(TaskBatchStatusEnum.FINISHED.name()) || batchStatusMessage.equals("create")) {
+        Stat stat = zkClient.checkExists().forPath(TASK_BATCH_STATUS_PATH);
+        if(Objects.nonNull(stat)) {
+            String batchStatusMessage = new String(zkClient.getData().forPath(TASK_BATCH_STATUS_PATH));
+            if (batchStatusMessage.equals(TaskBatchStatusEnum.FINISHED.name()) || batchStatusMessage.equals("create")) {
+                return true;
+            }
+            return false;
+        }else {
             return true;
         }
-        return false;
     }
 
     /**
@@ -171,7 +176,13 @@ public class TaskPubListener {
      * @return
      */
     private void setTaskBatchStatusNode(String message) throws Exception {
-        zkClient.setData().forPath(TASK_BATCH_STATUS_PATH, message.getBytes());
+        Stat stat = zkClient.checkExists().forPath(TASK_BATCH_STATUS_PATH);
+        if(Objects.nonNull(stat)) {
+            zkClient.setData().forPath(TASK_BATCH_STATUS_PATH, message.getBytes());
+        }else {
+            createTaskBatchStatusNode();
+            zkClient.setData().forPath(TASK_BATCH_STATUS_PATH, message.getBytes());
+        }
     }
 
     /**
