@@ -63,6 +63,9 @@ public class TaskPubListener {
     public void start() throws Exception{
         //校验必要成员
         volation();
+        //设置zkClient namespace
+        initZkClientNameSpace();
+
         //创建任务批次状态节点
         createTaskBatchStatusNode();
         //监听任务节点
@@ -73,6 +76,13 @@ public class TaskPubListener {
        synchronized (object) {
            object.notify();
        }
+    }
+
+    /**
+     * 设置zkClient namespace
+     */
+    private void initZkClientNameSpace() {
+       zkClient = zkClient.usingNamespace(getNamespace());
     }
 
     /**

@@ -28,7 +28,6 @@ public class ZKClientConf {
         CuratorFramework client = CuratorFrameworkFactory
                 .newClient(zkProperties.getAddress(), retryPolicy);
         client.start();
-        //client.usingNamespace(zkProperties.getNameSpace());
         return client;
     }
 }

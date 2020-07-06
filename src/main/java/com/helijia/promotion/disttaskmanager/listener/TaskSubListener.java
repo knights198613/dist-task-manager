@@ -54,6 +54,7 @@ public class TaskSubListener {
     public void start() throws Exception{
         //校验成员变量
         volation();
+        initZkClientNameSpace();
         //注册任务节点和任务状态节点
         registerTaskAndStatusNodes();
         //监听自己注册的任务分发节点
@@ -63,6 +64,13 @@ public class TaskSubListener {
 
     public void shutdown() {
         object.notify();
+    }
+
+    /**
+     * 设置zkClient namespace
+     */
+    private void initZkClientNameSpace() {
+       zkClient = zkClient.usingNamespace(getNamespace());
     }
 
     /**
@@ -145,22 +153,11 @@ public class TaskSubListener {
         if(Objects.nonNull(taskFinishedPayLoad)) {
             zkClient.setData().forPath(TASK_STATUS_NODE_PATH, JSON.toJSONString(taskFinishedPayLoad).getBytes());
         }
-
-        /*if(!CollectionUtils.isEmpty(taskPayloadList)) {
-            List<TaskFinishedPayLoad> taskFinishedPayLoadList = new ArrayList<>();
-            for(TaskPayload payload : taskPayloadList) {
-                String batchNum = payload.getBatchNum();
-                TaskFinishedPayLoad taskFinishedPayLoad = new TaskFinishedPayLoad();
-                taskFinishedPayLoad.setBatchNum(batchNum);
-                taskFinishedPayLoad.setTaskStatusEnum(TaskStatusEnum.SUCCESS);
-            }
-        }*/
     }
 
 
 
     public void setZkClient(CuratorFramework zkClient) {
-        zkClient.usingNamespace(getNamespace());
         this.zkClient = zkClient;
     }
 

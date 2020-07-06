@@ -28,7 +28,6 @@ public class TaskPayload<T> implements Serializable {
     private String taskId;
 
     public TaskPayload() {
-        this.taskId = UUID.randomUUID().toString();
     }
 
     public String getBatchNum() {
@@ -49,5 +48,16 @@ public class TaskPayload<T> implements Serializable {
 
     public String getTaskId() {
         return taskId;
+    }
+
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
+    }
+
+    /**
+     * 自产taskId
+     */
+    public void prdTaskId() {
+        setTaskId(UUID.randomUUID().toString());
     }
 }
