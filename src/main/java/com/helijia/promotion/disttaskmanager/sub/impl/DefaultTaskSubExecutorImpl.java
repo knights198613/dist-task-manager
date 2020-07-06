@@ -26,7 +26,7 @@ public class DefaultTaskSubExecutorImpl implements TaskSubExecutor {
     public TaskFinishedPayLoad doExecute(TaskPayload taskPayload) {
         log.info("接收到的任务：{}.", JSON.toJSONString(taskPayload));
         try {
-            TimeUnit.SECONDS.sleep(5);
+            TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
             log.error("##########");
         }

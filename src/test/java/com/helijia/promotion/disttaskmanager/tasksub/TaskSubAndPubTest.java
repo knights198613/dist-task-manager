@@ -27,7 +27,6 @@ public class TaskSubAndPubTest extends DistTaskManagerApplicationTests {
     @Test
     public void testRun() {
         try {
-            for(int x=1; x<10; x++) {
                 new Thread(() -> {
                     try {
                         TimeUnit.SECONDS.sleep(10);
@@ -43,9 +42,38 @@ public class TaskSubAndPubTest extends DistTaskManagerApplicationTests {
                         e.printStackTrace();
                     }
                 }, "pubThread").start();
-            }
 
+            new Thread(() -> {
+                try {
+                    TimeUnit.SECONDS.sleep(13);
+                    List<TaskPayload> taskPayloadList = new ArrayList<>();
+                    TaskPayload t1 = new TaskPayload();
+                    t1.setBatchNum(UUID.randomUUID().toString());
+                    t1.setTaskInfo(new String("FUCK!!!"));
+                    t1.prdTaskId();
+                    taskPayloadList.add(t1);
+                    taskPubListener.pubTask(taskPayloadList);
+                    TimeUnit.SECONDS.sleep(1000);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, "pubThread").start();
 
+            new Thread(() -> {
+                try {
+                    TimeUnit.SECONDS.sleep(16);
+                    List<TaskPayload> taskPayloadList = new ArrayList<>();
+                    TaskPayload t1 = new TaskPayload();
+                    t1.setBatchNum(UUID.randomUUID().toString());
+                    t1.setTaskInfo(new String("FUCK!!!"));
+                    t1.prdTaskId();
+                    taskPayloadList.add(t1);
+                    taskPubListener.pubTask(taskPayloadList);
+                    TimeUnit.SECONDS.sleep(1000);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, "pubThread").start();
             TimeUnit.SECONDS.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
